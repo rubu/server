@@ -100,6 +100,7 @@ struct image_transform final
 	core::field_mode		field_mode			= core::field_mode::progressive;
 	bool					is_key				= false;
         bool                                    invert                      = false;
+	// The frame is part of a 'mix'. This is a group that should be flattened and treated like a single frame?
 	bool					is_mix				= false;
 	bool					use_mipmap			= false;
 	core::blend_mode		blend_mode			= core::blend_mode::normal;

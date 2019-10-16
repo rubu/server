@@ -217,6 +217,8 @@ struct image_kernel::impl
 			coord.vertex_y += f_p[1];
 		};
 
+		CASPAR_LOG(info) << "Trying to fit " << "x" << " into " << "x" << params.aspect_ratio;
+
 		int corner = 0;
 		for (auto& coord : coords)
 		{

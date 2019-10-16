@@ -84,7 +84,7 @@ public:
 	{
 	}
 
-	std::future<array<const std::uint8_t>> operator()(std::vector<layer> layers, const core::video_format_desc& format_desc, bool straighten_alpha)
+	std::future<array<const std::uint8_t>> operator()(const std::vector<layer> layers, const core::video_format_desc& format_desc, bool straighten_alpha)
 	{
 		if(layers.empty())
 		{ // Bypass GPU with empty frame.
@@ -94,15 +94,15 @@ public:
 
 		return flatten(ogl_->begin_invoke([=]() mutable -> std::shared_future<array<const std::uint8_t>>
 		{
-			auto target_texture = ogl_->create_texture(format_desc.width, format_desc.height, 4, false);
+			auto const target_texture = ogl_->create_texture(format_desc.width, format_desc.height, 4, false);
 
 			if (format_desc.field_mode != core::field_mode::progressive)
 			{
-				draw(target_texture, layers, format_desc, core::field_mode::upper);
-				draw(target_texture, std::move(layers), format_desc, core::field_mode::lower);
+				draw_layers(target_texture, layers, format_desc, core::field_mode::upper);
+				draw_layers(target_texture, std::move(layers), format_desc, core::field_mode::lower);
 			}
 			else
-				draw(target_texture, std::move(layers), format_desc, core::field_mode::progressive);
+				draw_layers(target_texture, std::move(layers), format_desc, core::field_mode::progressive);
 
 			kernel_.post_process(target_texture, straighten_alpha);
 
@@ -114,47 +114,26 @@ public:
 
 private:
 
-	void draw(spl::shared_ptr<texture>&			target_texture,
-			  std::vector<layer>				layers,
+	void draw_layers(const spl::shared_ptr<texture>& target_texture,
+			  const std::vector<layer>			layers,
 			  const core::video_format_desc&	format_desc,
-			  core::field_mode					field_mode)
+			  const core::field_mode			field_mode)
 	{
 		std::shared_ptr<texture> layer_key_texture;
 
 		for (auto& layer : layers)
 		{
-			draw(target_texture, layer.sublayers, format_desc, field_mode);
-			draw(target_texture, std::move(layer), layer_key_texture, format_desc, field_mode);
+			draw_layers(target_texture, layer.sublayers, format_desc, field_mode);
+			draw_layer(target_texture, std::move(layer), layer_key_texture, format_desc, field_mode);
 		}
 	}
 
-	void draw(spl::shared_ptr<texture>&			target_texture,
+	void draw_layer(const spl::shared_ptr<texture>&	target_texture,
 			  layer								layer,
 			  std::shared_ptr<texture>&			layer_key_texture,
 			  const core::video_format_desc&	format_desc,
-			  core::field_mode					field_mode)
+			  const core::field_mode			field_mode)
 	{
-		// REMOVED: This is done in frame_muxer.
-		// Fix frames
-		//BOOST_FOREACH(auto& item, layer.items)
-		//{
-			//if(std::abs(item.transform.fill_scale[1]-1.0) > 1.0/target_texture->height() ||
-			//   std::abs(item.transform.fill_translation[1]) > 1.0/target_texture->height())
-			//	CASPAR_LOG(warning) << L"[image_mixer] Frame should be deinterlaced. Send FILTER DEINTERLACE_BOB when creating producer.";
-
-			//if(item.pix_desc.planes.at(0).height == 480) // NTSC DV
-			//{
-			//	item.transform.fill_translation[1] += 2.0/static_cast<double>(format_desc.height);
-			//	item.transform.fill_scale[1] *= 1.0 - 6.0*1.0/static_cast<double>(format_desc.height);
-			//}
-
-			//// Fix field-order if needed
-			//if(item.field_mode == core::field_mode::lower && format_desc.field_mode == core::field_mode::upper)
-			//	item.transform.fill_translation[1] += 1.0/static_cast<double>(format_desc.height);
-			//else if(item.field_mode == core::field_mode::upper && format_desc.field_mode == core::field_mode::lower)
-			//	item.transform.fill_translation[1] -= 1.0/static_cast<double>(format_desc.height);
-		//}
-
 		// Mask out fields
 		for (auto& item : layer.items)
 			item.transform.field_mode &= field_mode;
@@ -176,25 +155,25 @@ private:
 			auto layer_texture = ogl_->create_texture(target_texture->width(), target_texture->height(), 4, false);
 
 			for (auto& item : layer.items)
-				draw(layer_texture, std::move(item), layer_key_texture, local_key_texture, local_mix_texture, format_desc);
+				draw_item(layer_texture, std::move(item), layer_key_texture, local_key_texture, local_mix_texture, format_desc);
 
-			draw(layer_texture, std::move(local_mix_texture), core::blend_mode::normal);
-			draw(target_texture, std::move(layer_texture), layer.blend_mode);
+			draw_texture(layer_texture, std::move(local_mix_texture), core::blend_mode::normal);
+			draw_texture(target_texture, std::move(layer_texture), layer.blend_mode);
 		}
 		else // fast path
 		{
 			for (auto& item : layer.items)
-				draw(target_texture, std::move(item), layer_key_texture, local_key_texture, local_mix_texture, format_desc);
+				draw_item(target_texture, std::move(item), layer_key_texture, local_key_texture, local_mix_texture, format_desc);
 
-			draw(target_texture, std::move(local_mix_texture), core::blend_mode::normal);
+			draw_texture(target_texture, std::move(local_mix_texture), core::blend_mode::normal);
 		}
 
 		layer_key_texture = std::move(local_key_texture);
 	}
 
-	void draw(spl::shared_ptr<texture>& target_texture,
-			  item item,
-		      std::shared_ptr<texture>& layer_key_texture,
+	void draw_item(const spl::shared_ptr<texture>& target_texture,
+			  const item item,
+		      const std::shared_ptr<texture>& layer_key_texture,
 			  std::shared_ptr<texture>& local_key_texture,
 			  std::shared_ptr<texture>& local_mix_texture,
 			  const core::video_format_desc& format_desc)
@@ -208,7 +187,7 @@ private:
 		for (auto& future_texture : item.textures)
 			draw_params.textures.push_back(spl::make_shared_ptr(future_texture.get()));
 
-		if(item.transform.is_key)
+		if(item.transform.is_key) // A key means we will use it for the next non-key item as a mask
 		{
 			local_key_texture = local_key_texture ? local_key_texture : ogl_->create_texture(target_texture->width(), target_texture->height(), 1, draw_params.transform.use_mipmap);
 
@@ -218,12 +197,12 @@ private:
 
 			kernel_.draw(std::move(draw_params));
 		}
-		else if(item.transform.is_mix)
+		else if(item.transform.is_mix) // A mix means precomp the items to a texture, before drawing to the channel
 		{
 			local_mix_texture = local_mix_texture ? local_mix_texture : ogl_->create_texture(target_texture->width(), target_texture->height(), 4, draw_params.transform.use_mipmap);
 
 			draw_params.background	= local_mix_texture;
-			draw_params.local_key	= std::move(local_key_texture);
+			draw_params.local_key	= std::move(local_key_texture); // Use and reset the key
 			draw_params.layer_key	= layer_key_texture;
 
 			draw_params.keyer		= keyer::additive;
@@ -232,7 +211,8 @@ private:
 		}
 		else
 		{
-			draw(target_texture, std::move(local_mix_texture), core::blend_mode::normal);
+			// If there is a mix, this is the end so draw it and reset
+			draw_texture(target_texture, std::move(local_mix_texture), core::blend_mode::normal);
 
 			draw_params.background	= target_texture;
 			draw_params.local_key	= std::move(local_key_texture);
@@ -242,17 +222,17 @@ private:
 		}
 	}
 
-	void draw(spl::shared_ptr<texture>&	 target_texture,
-			  std::shared_ptr<texture>&& source_buffer,
-			  core::blend_mode			 blend_mode = core::blend_mode::normal)
+	void draw_texture(const spl::shared_ptr<texture>& target_texture,
+			  const std::shared_ptr<texture>&& source_texture,
+			  core::blend_mode					blend_mode = core::blend_mode::normal)
 	{
-		if(!source_buffer)
+		if(!source_texture)
 			return;
 
 		draw_params draw_params;
 		draw_params.pix_desc.format	= core::pixel_format::bgra;
-		draw_params.pix_desc.planes	= { core::pixel_format_desc::plane(source_buffer->width(), source_buffer->height(), 4) };
-		draw_params.textures		= { spl::make_shared_ptr(source_buffer) };
+		draw_params.pix_desc.planes	= { core::pixel_format_desc::plane(source_texture->width(), source_texture->height(), 4) };
+		draw_params.textures		= { spl::make_shared_ptr(source_texture) };
 		draw_params.transform		= core::image_transform();
 		draw_params.blend_mode		= blend_mode;
 		draw_params.background		= target_texture;
