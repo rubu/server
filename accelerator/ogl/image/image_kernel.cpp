@@ -216,8 +216,24 @@ struct image_kernel::impl
 			coord.vertex_x += f_p[0];
 			coord.vertex_y += f_p[1];
 		};
+		
+		auto const first_plane = params.pix_desc.planes.at(0);
+		//CASPAR_LOG(info) << "Trying to fit " << first_plane.width << "x" << first_plane.height << " into " << params.target_width << "x" << params.target_height;
 
-		CASPAR_LOG(info) << "Trying to fit " << "x" << " into " << "x" << params.aspect_ratio;
+
+		/* Something very broken...
+		float new_aspect = static_cast<float>(params.target_width) / static_cast<float>(params.target_height);
+		float new_width = std::min(1.0f, static_cast<float>(params.target_height)* new_aspect / static_cast<float>(params.target_width));
+		float new_height = static_cast<float>(params.target_width * first_plane.width) / (static_cast<float>(params.target_height) * new_aspect);
+		*/
+
+		// Original:
+		float new_width = static_cast<float>(first_plane.width) / static_cast<float>(params.target_width);
+		float new_height = static_cast<float>(first_plane.height) / static_cast<float>(params.target_height);
+
+		f_s[0] *= new_width;
+		f_s[1] *= new_height;
+		//CASPAR_LOG(info) << "Running: " << new_width << "x" << new_height;
 
 		int corner = 0;
 		for (auto& coord : coords)

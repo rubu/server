@@ -157,15 +157,15 @@ private:
 			for (auto& item : layer.items)
 				draw_item(layer_texture, std::move(item), layer_key_texture, local_key_texture, local_mix_texture, format_desc);
 
-			draw_texture(layer_texture, std::move(local_mix_texture), core::blend_mode::normal);
-			draw_texture(target_texture, std::move(layer_texture), layer.blend_mode);
+			draw_texture(layer_texture, std::move(local_mix_texture), format_desc, core::blend_mode::normal);
+			draw_texture(target_texture, std::move(layer_texture), format_desc, layer.blend_mode);
 		}
 		else // fast path
 		{
 			for (auto& item : layer.items)
 				draw_item(target_texture, std::move(item), layer_key_texture, local_key_texture, local_mix_texture, format_desc);
 
-			draw_texture(target_texture, std::move(local_mix_texture), core::blend_mode::normal);
+			draw_texture(target_texture, std::move(local_mix_texture), format_desc, core::blend_mode::normal);
 		}
 
 		layer_key_texture = std::move(local_key_texture);
@@ -179,6 +179,8 @@ private:
 			  const core::video_format_desc& format_desc)
 	{
 		draw_params draw_params;
+		draw_params.target_width	= format_desc.square_width;
+		draw_params.target_height	= format_desc.square_height;
 		draw_params.pix_desc		= std::move(item.pix_desc);
 		draw_params.transform		= std::move(item.transform);
 		draw_params.geometry		= item.geometry;
@@ -212,7 +214,7 @@ private:
 		else
 		{
 			// If there is a mix, this is the end so draw it and reset
-			draw_texture(target_texture, std::move(local_mix_texture), core::blend_mode::normal);
+			draw_texture(target_texture, std::move(local_mix_texture), format_desc, core::blend_mode::normal);
 
 			draw_params.background	= target_texture;
 			draw_params.local_key	= std::move(local_key_texture);
@@ -224,12 +226,15 @@ private:
 
 	void draw_texture(const spl::shared_ptr<texture>& target_texture,
 			  const std::shared_ptr<texture>&& source_texture,
+			  const core::video_format_desc		format_desc,
 			  core::blend_mode					blend_mode = core::blend_mode::normal)
 	{
 		if(!source_texture)
 			return;
 
 		draw_params draw_params;
+		draw_params.target_width	= format_desc.square_width;
+		draw_params.target_height	= format_desc.square_height;
 		draw_params.pix_desc.format	= core::pixel_format::bgra;
 		draw_params.pix_desc.planes	= { core::pixel_format_desc::plane(source_texture->width(), source_texture->height(), 4) };
 		draw_params.textures		= { spl::make_shared_ptr(source_texture) };
