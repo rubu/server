@@ -29,6 +29,7 @@
 #include <common/env.h>
 
 #include <core/frame/frame.h>
+#include <core/frame/geometry.h>
 #include <core/mixer/audio/audio_mixer.h>
 #include <core/fwd.h>
 
@@ -51,6 +52,7 @@ public:
 			const core::video_format_repository& format_repository,
 			const core::video_format_desc& format_desc,
 			const core::audio_channel_layout& channel_layout,
+			core::frame_geometry::scale_mode scale_mode,
 			const std::wstring& filter,
 			bool multithreaded_filter,
 			bool force_deinterlacing = env::properties().get(L"configuration.force-deinterlace", false));
