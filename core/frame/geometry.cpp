@@ -46,8 +46,9 @@ bool frame_geometry::coord::operator==(const frame_geometry::coord& other) const
 
 struct frame_geometry::impl
 {
-	impl(frame_geometry::geometry_type type, std::vector<coord> data)
+	impl(frame_geometry::geometry_type type, frame_geometry::scale_mode mode, std::vector<coord> data)
 		: type_(type)
+		, mode_(mode)
 	{
 		if (type == geometry_type::quad && data.size() != 4)
 			CASPAR_THROW_EXCEPTION(invalid_argument() << msg_info("The number of coordinates needs to be 4"));
@@ -62,18 +63,20 @@ struct frame_geometry::impl
 	}
 	
 	frame_geometry::geometry_type	type_;
+	frame_geometry::scale_mode		mode_;
 	std::vector<coord>				data_;
 };
 
-frame_geometry::frame_geometry(geometry_type type, std::vector<coord> data) : impl_(new impl(type, std::move(data))) {}
+frame_geometry::frame_geometry(geometry_type type, frame_geometry::scale_mode mode, std::vector<coord> data) : impl_(new impl(type, mode, std::move(data))) {}
 
 frame_geometry::geometry_type frame_geometry::type() const { return impl_->type_; }
+frame_geometry::scale_mode frame_geometry::mode() const { return impl_->mode_; }
 const std::vector<frame_geometry::coord>& frame_geometry::data() const
 {
 	return impl_->data_;
 }
 	
-const frame_geometry& frame_geometry::get_default()
+const frame_geometry frame_geometry::get_default(frame_geometry::scale_mode mode)
 {
 	static std::vector<frame_geometry::coord> data = {
 	//    vertex    texture
@@ -82,9 +85,38 @@ const frame_geometry& frame_geometry::get_default()
 		{ 1.0, 1.0, 1.0, 1.0 }, // lower right
 		{ 0.0, 1.0, 0.0, 1.0 }  // lower left
 	};
-	static const frame_geometry g(frame_geometry::geometry_type::quad, data);
+
+	frame_geometry g(frame_geometry::geometry_type::quad, mode, data);
 
 	return g;
+}
+
+frame_geometry::scale_mode scale_mode_from_string(const std::wstring& str) {
+	if (str == L"fit") {
+		return frame_geometry::scale_mode::fit;
+	}
+	else if (str == L"fill") {
+		return frame_geometry::scale_mode::fill;
+	}
+	else if (str == L"original") {
+		return frame_geometry::scale_mode::original;
+	}
+	else {
+		return frame_geometry::scale_mode::stretch;
+	}
+}
+
+std::wstring scale_mode_to_string(frame_geometry::scale_mode mode) {
+	switch (mode) {
+	case frame_geometry::scale_mode::fill:
+		return L"FILL";
+	case frame_geometry::scale_mode::fit:
+		return L"FIT";
+	case frame_geometry::scale_mode::original:
+		return L"ORIGINAL";
+	default:
+		return L"STRETCH";
+	}
 }
 
 }}

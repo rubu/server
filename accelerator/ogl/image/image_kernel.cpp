@@ -218,22 +218,29 @@ struct image_kernel::impl
 		};
 		
 		auto const first_plane = params.pix_desc.planes.at(0);
-		//CASPAR_LOG(info) << "Trying to fit " << first_plane.width << "x" << first_plane.height << " into " << params.target_width << "x" << params.target_height;
+		if (params.geometry.mode() != core::frame_geometry::scale_mode::stretch && first_plane.width > 0 && first_plane.height > 0) {
+			auto width_scale = static_cast<float>(params.target_width) / static_cast<float>(first_plane.width);
+			auto height_scale = static_cast<float>(params.target_height) / static_cast<float>(first_plane.height);
 
-
-		/* Something very broken...
-		float new_aspect = static_cast<float>(params.target_width) / static_cast<float>(params.target_height);
-		float new_width = std::min(1.0f, static_cast<float>(params.target_height)* new_aspect / static_cast<float>(params.target_width));
-		float new_height = static_cast<float>(params.target_width * first_plane.width) / (static_cast<float>(params.target_height) * new_aspect);
-		*/
-
-		// Original:
-		float new_width = static_cast<float>(first_plane.width) / static_cast<float>(params.target_width);
-		float new_height = static_cast<float>(first_plane.height) / static_cast<float>(params.target_height);
-
-		f_s[0] *= new_width;
-		f_s[1] *= new_height;
-		//CASPAR_LOG(info) << "Running: " << new_width << "x" << new_height;
+			switch (params.geometry.mode()) {
+			case core::frame_geometry::scale_mode::original:
+				f_s[0] /= width_scale;
+				f_s[1] /= height_scale;
+				break;
+			case core::frame_geometry::scale_mode::fit: {
+				auto target_scale = std::min(width_scale, height_scale);
+				f_s[0] *= target_scale / width_scale;
+				f_s[1] *= target_scale / height_scale;
+				break;
+			}
+			case core::frame_geometry::scale_mode::fill: {
+				auto target_scale = std::max(width_scale, height_scale);
+				f_s[0] *= target_scale / width_scale;
+				f_s[1] *= target_scale / height_scale;
+				break;
+			}
+			}
+		}
 
 		int corner = 0;
 		for (auto& coord : coords)
