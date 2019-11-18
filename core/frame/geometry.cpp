@@ -92,13 +92,14 @@ const frame_geometry frame_geometry::get_default(frame_geometry::scale_mode mode
 }
 
 frame_geometry::scale_mode scale_mode_from_string(const std::wstring& str) {
-	if (str == L"fit") {
+	auto str2 = boost::to_lower_copy(str);
+	if (str2 == L"fit") {
 		return frame_geometry::scale_mode::fit;
 	}
-	else if (str == L"fill") {
+	else if (str2 == L"fill") {
 		return frame_geometry::scale_mode::fill;
 	}
-	else if (str == L"original") {
+	else if (str2 == L"original") {
 		return frame_geometry::scale_mode::original;
 	}
 	else {

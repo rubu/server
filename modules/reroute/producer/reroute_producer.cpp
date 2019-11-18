@@ -112,7 +112,13 @@ spl::shared_ptr<core::frame_producer> create_producer(
                 else if (contains_param(L"NEXT", params))
                     mode = core::frame_consumer_mode::next_producer;
 
-		return create_layer_producer(*found_channel, layer, mode, frames_delay, dependencies.format_desc);
+				auto scale_mode_str = get_param(L"SCALE_MODE", params, L"");
+				boost::optional<core::frame_geometry::scale_mode> scale_mode = boost::none;
+				if (scale_mode_str != L"") {
+					scale_mode = core::scale_mode_from_string(scale_mode_str);
+				}
+
+		return create_layer_producer(*found_channel, layer, mode, frames_delay, dependencies.format_desc, scale_mode);
 	}
 	else
 	{
