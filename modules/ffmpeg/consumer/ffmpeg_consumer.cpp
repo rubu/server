@@ -447,6 +447,7 @@ public:
 
 				if (!(oc_->oformat->flags & AVFMT_NOFILE))
 				{
+					CASPAR_LOG(info) << L"Caspar is opening file, not demuxer.";
 					FF(avio_open2(
 						&oc_->pb,
 						full_path_.string().c_str(),
@@ -497,6 +498,10 @@ public:
 
 	void send(core::const_frame frame)
 	{
+		if (abort_request_) {
+			CASPAR_THROW_EXCEPTION(caspar_exception() << msg_info("Writing file or stream has failed.") << boost::errinfo_api_function("send"));
+		}
+
 		CASPAR_VERIFY(in_video_format_.format != core::video_format::invalid);
 
 		auto frame_timer = spl::make_shared<caspar::timer>();
@@ -1099,9 +1104,17 @@ private:
 	{
 		write_executor_.begin_invoke([this, pkt_ptr, token]() mutable
 		{
-			FF(av_interleaved_write_frame(
-				oc_.get(),
-				pkt_ptr.get()));
+			try {
+				FF(av_interleaved_write_frame(
+					oc_.get(),
+					pkt_ptr.get()));
+			}
+			catch (...)
+			{
+				CASPAR_LOG_CURRENT_EXCEPTION();
+				abort_request_ = true;
+				
+			}
 		});
 	}
 
@@ -1232,8 +1245,11 @@ public:
 
         void create_consumers()
 	{
-            if (consumer_)
-                CASPAR_THROW_EXCEPTION(invalid_operation() << msg_info("Cannot reinitialize ffmpeg-consumer."));
+			// if (consumer_) {
+			// 	delete consumer_.release();
+			// }
+			if (consumer_)
+				CASPAR_THROW_EXCEPTION(invalid_operation() << msg_info("Cannot reinitialize ffmpeg-consumer."));
 
             consumer_.reset(new ffmpeg_consumer(path_, options_, mono_streams_));
 

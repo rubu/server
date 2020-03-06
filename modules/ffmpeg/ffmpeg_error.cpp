@@ -45,8 +45,11 @@ std::string av_error_str(int errn)
 
 void throw_on_ffmpeg_error(int ret, const char* source, const char* func, const char* local_func, const char* file, int line)
 {
-	if(ret >= 0)
+	if (ret >= 0) {
 		return;
+	}
+
+	// CASPAR_LOG(debug) << L"Received interleaved error code " << ret;
 
 	switch(ret)
 	{

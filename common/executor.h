@@ -249,6 +249,7 @@ private:
 		{
 			if (!is_ready(future) && is_current()) // Avoids potential deadlock.
 			{
+				// CASPAR_LOG(debug) << L"Executing function now without catch: " << name_;
 				function();
 			}
 
