@@ -49,8 +49,6 @@ void throw_on_ffmpeg_error(int ret, const char* source, const char* func, const 
 		return;
 	}
 
-	// CASPAR_LOG(debug) << L"Received interleaved error code " << ret;
-
 	switch(ret)
 	{
 	case AVERROR_BSF_NOT_FOUND:

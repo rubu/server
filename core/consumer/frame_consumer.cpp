@@ -34,8 +34,6 @@
 #include <boost/thread.hpp>
 
 #include <future>
-#include <thread>
-#include <chrono>
 #include <map>
 #include <vector>
 
@@ -209,27 +207,7 @@ class recover_consumer_proxy : public frame_consumer
             return consumer_->send(timecode, frame);
         } catch (...) {
             CASPAR_LOG_CURRENT_EXCEPTION();
-			// Make a future that that takes 1 second to completed
-			/* std::promise<bool> p1;
-			std::future<bool> f_completes = p1.get_future();
-			std::thread([&](std::promise<bool> p1) 
-			{
-				CASPAR_LOG(info) << L"Attempting restart in 10 seconds.";
-				std::this_thread::sleep_for(std::chrono::seconds(10));
-				try {
-					consumer_->initialize(format_desc_, channel_layout_, channel_index_);
-					consumer_->send(timecode, frame);
-					p1.set_value_at_thread_exit(true);
-				}
-				catch (...) {
-					CASPAR_LOG_CURRENT_EXCEPTION();
-					CASPAR_LOG(error) << print() << " Failed to recover consumer.";
-					p1.set_value_at_thread_exit(false);
-				}
-			}, std::move(p1)).detach();
-
-			return f_completes; */
-			try {
+			try { // Note: following line will always fail for FFmpeg consumer
 				consumer_->initialize(format_desc_, channel_layout_, channel_index_);
 				return consumer_->send(timecode, frame);
 			}

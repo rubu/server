@@ -447,7 +447,7 @@ public:
 
 				if (!(oc_->oformat->flags & AVFMT_NOFILE))
 				{
-					CASPAR_LOG(info) << L"Caspar is opening file, not demuxer.";
+					CASPAR_LOG(debug) << L"Caspar is opening output with avio_open2, not the FFmpeg demuxer.";
 					FF(avio_open2(
 						&oc_->pb,
 						full_path_.string().c_str(),
@@ -1245,9 +1245,6 @@ public:
 
         void create_consumers()
 	{
-			// if (consumer_) {
-			// 	delete consumer_.release();
-			// }
 			if (consumer_)
 				CASPAR_THROW_EXCEPTION(invalid_operation() << msg_info("Cannot reinitialize ffmpeg-consumer."));
 
