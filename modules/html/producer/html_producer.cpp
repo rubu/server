@@ -648,6 +648,9 @@ public:
 				return core::draw_frame::empty();
 			}
 
+			monitor_subject_
+				<< core::monitor::message("/file/path") % url_;
+
 			return client_->receive();
 		}
 
@@ -675,6 +678,11 @@ public:
 	{
 		boost::property_tree::wptree info;
 		info.add(L"type", L"html-producer");
+
+		if (client_) {
+			info.add(L"filename", url_);
+		}
+
 		return info;
 	}
 
