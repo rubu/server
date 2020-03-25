@@ -207,14 +207,15 @@ class recover_consumer_proxy : public frame_consumer
             return consumer_->send(timecode, frame);
         } catch (...) {
             CASPAR_LOG_CURRENT_EXCEPTION();
-            try {
-                consumer_->initialize(format_desc_, channel_layout_, channel_index_);
-                return consumer_->send(timecode, frame);
-            } catch (...) {
-                CASPAR_LOG_CURRENT_EXCEPTION();
-                CASPAR_LOG(error) << print() << " Failed to recover consumer.";
-                return make_ready_future(false);
-            }
+			try { // Note: following line will always fail for FFmpeg consumer
+				consumer_->initialize(format_desc_, channel_layout_, channel_index_);
+				return consumer_->send(timecode, frame);
+			}
+			catch (...) {
+				CASPAR_LOG_CURRENT_EXCEPTION();
+				CASPAR_LOG(error) << print() << " Failed to recover consumer.";
+				return make_ready_future(false);
+			}
         }
     }
 
