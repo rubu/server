@@ -66,7 +66,7 @@ struct device::impl : public std::enable_shared_from_this<impl>
     std::array<tbb::concurrent_unordered_map<size_t, texture_queue_t>, 4> device_pools_;
     std::array<tbb::concurrent_unordered_map<size_t, buffer_queue_t>, 2>  host_pools_;
 
-    using sync_queue_t = tbb::concurrent_bounded_queue<std::shared_ptr<buffer>>;
+    using sync_queue_t = tbb::concurrent_queue<std::shared_ptr<buffer>>;
 
     sync_queue_t sync_queue_;
 
@@ -134,6 +134,9 @@ struct device::impl : public std::enable_shared_from_this<impl>
 #endif
 
         thread_ = std::thread([&] {
+#ifdef WIN32
+            SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+#endif
             device_.setActive(true);
             set_thread_name(L"OpenGL Device");
             service_.run();
@@ -213,10 +216,10 @@ struct device::impl : public std::enable_shared_from_this<impl>
             ptr, [tex = std::move(tex), pool, self = shared_from_this()](texture*) mutable { pool->push(tex); });
     }
 
-    std::shared_ptr<buffer> create_buffer(int size, bool write)
+    std::shared_ptr<buffer> create_buffer(int size, bool write) 
     {
         CASPAR_VERIFY(size > 0);
-
+        
         // TODO (perf) Shared pool.
         auto pool = &host_pools_[static_cast<int>(write ? 1 : 0)][size];
 
@@ -228,7 +231,7 @@ struct device::impl : public std::enable_shared_from_this<impl>
 
         auto ptr = buf.get();
         return std::shared_ptr<buffer>(ptr, [buf = std::move(buf), self = shared_from_this()](buffer*) mutable {
-            self->sync_queue_.emplace(std::move(buf));
+            self->sync_queue_.push(std::move(buf));
         });
     }
 

@@ -24,6 +24,7 @@ class AVProducer
                boost::optional<int64_t>             duration,
                boost::optional<bool>                loop);
 
+    core::draw_frame first_frame();
     core::draw_frame prev_frame();
     core::draw_frame next_frame();
 

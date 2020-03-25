@@ -101,6 +101,8 @@ struct ffmpeg_producer : public core::frame_producer
 
     // frame_producer
 
+    core::draw_frame first_frame() override { return producer_->first_frame(); }
+
     core::draw_frame last_frame() override { return producer_->prev_frame(); }
 
     core::draw_frame receive_impl(int nb_samples) override { return producer_->next_frame(); }

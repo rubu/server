@@ -209,7 +209,8 @@ struct Filter
                 filter_spec = "null";
             }
 
-            auto deint = u8(env::properties().get<std::wstring>(L"configuration.ffmpeg.producer.auto-deinterlace", L"interlaced"));
+            auto deint = u8(
+                env::properties().get<std::wstring>(L"configuration.ffmpeg.producer.auto-deinterlace", L"interlaced"));
 
             if (deint != "none") {
                 filter_spec += (boost::format(",bwdif=mode=send_field:parity=auto:deint=%s") % deint).str();
@@ -234,8 +235,7 @@ struct Filter
             }
             filter_spec += (boost::format(",aresample=async=1000:first_pts=%d:min_comp=0.01:osr=%d,"
                                           "asetnsamples=n=1024:p=0") %
-                            av_rescale_q(start_time, TIME_BASE_Q, tb) %
-                            format_desc.audio_sample_rate)
+                            av_rescale_q(start_time, TIME_BASE_Q, tb) % format_desc.audio_sample_rate)
                                .str();
         }
 
@@ -470,7 +470,7 @@ struct Filter
         }
 
         FF(avfilter_graph_config(graph.get(), nullptr));
-        
+
         CASPAR_LOG(debug) << avfilter_graph_dump(graph.get(), nullptr);
     }
 
@@ -538,17 +538,19 @@ struct AVProducer::Impl
     int64_t          frame_time_     = AV_NOPTS_VALUE;
     int64_t          frame_duration_ = AV_NOPTS_VALUE;
     core::draw_frame frame_;
+    core::draw_frame first_frame_;
 
     std::deque<Frame>         buffer_;
     mutable boost::mutex      buffer_mutex_;
     boost::condition_variable buffer_cond_;
     std::atomic<bool>         buffer_eof_{false};
-    int                       buffer_capacity_ = static_cast<int>(format_desc_.fps) / 2;
+    int                       buffer_capacity_ = static_cast<int>(format_desc_.fps) / 4; // / 2; // = 8; // TODO - this reduces the impact to not happening most of the time, but dip is still noticable in the graph
 
     int latency_ = 0;
 
     boost::thread     thread_;
     std::atomic<bool> abort_request_{false};
+    std::atomic<bool> started_playing_{false};
 
     Impl(std::shared_ptr<core::frame_factory> frame_factory,
          core::video_format_desc              format_desc,
@@ -743,16 +745,23 @@ struct AVProducer::Impl
             graph_->set_value("frame-time", frame_timer.elapsed() * format_desc_.fps * 0.5);
             frame_timer.restart();
 
+            size_t buffer_size = 0;
             {
                 boost::unique_lock<boost::mutex> buffer_lock(buffer_mutex_);
                 buffer_cond_.wait(buffer_lock, [&] { return buffer_.size() < buffer_capacity_ || abort_request_; });
                 if (seek_ == AV_NOPTS_VALUE) {
                     buffer_.push_back(frame);
                 }
+                buffer_size = buffer_.size();
             }
 
             frame_count_ += 1;
             graph_->set_value("buffer", static_cast<double>(buffer_.size()) / static_cast<double>(buffer_capacity_));
+
+            if (!started_playing_) {
+                // This isnt playing yet, so take it slow to fill the buffer
+                boost::this_thread::sleep_for(boost::chrono::milliseconds(buffer_size >= 4 ? 10 : 2));
+            }
 
             boost::range::rotate(audio_cadence, std::end(audio_cadence) - 1);
         }
@@ -765,6 +774,22 @@ struct AVProducer::Impl
         state_["file/clip"] = {start().value_or(0) / format_desc_.fps, duration().value_or(0) / format_desc_.fps};
         state_["file/time"] = {time() / format_desc_.fps, file_duration().value_or(0) / format_desc_.fps};
         state_["loop"]      = loop_;
+    }
+
+    core::draw_frame first_frame()
+    {
+        CASPAR_SCOPE_EXIT { update_state(); };
+
+        if (!first_frame_) {
+            boost::lock_guard<boost::mutex> lock(buffer_mutex_);
+            if (!buffer_.empty()) {
+                first_frame_    = buffer_[0].frame;
+                frame_time_     = buffer_[0].pts;
+                frame_duration_ = buffer_[0].duration;
+            }
+        }
+
+        return core::draw_frame::still(first_frame_);
     }
 
     core::draw_frame prev_frame()
@@ -821,7 +846,13 @@ struct AVProducer::Impl
         frame_duration_ = buffer_[0].duration;
         frame_flush_    = false;
 
+        if (!first_frame_) {
+            first_frame_ = frame_;
+        }
+
         buffer_.pop_front();
+
+        started_playing_.store(true);
         buffer_cond_.notify_all();
 
         graph_->set_value("buffer", static_cast<double>(buffer_.size()) / static_cast<double>(buffer_capacity_));
@@ -1012,7 +1043,7 @@ struct AVProducer::Impl
 
     std::string print() const
     {
-        const int position = std::max(static_cast<int>(time() - start().value_or(0)), 0);
+        const int          position = std::max(static_cast<int>(time() - start().value_or(0)), 0);
         std::ostringstream str;
         str << std::fixed << std::setprecision(4) << "ffmpeg[" << name_ << "|"
             << av_q2d({position * format_tb_.num, format_tb_.den}) << "/"
@@ -1041,6 +1072,8 @@ AVProducer::AVProducer(std::shared_ptr<core::frame_factory> frame_factory,
                      std::move(loop.get_value_or(false))))
 {
 }
+
+core::draw_frame AVProducer::first_frame() { return impl_->first_frame(); }
 
 core::draw_frame AVProducer::next_frame() { return impl_->next_frame(); }
 
