@@ -219,8 +219,8 @@ struct image_kernel::impl
 		
 		auto const first_plane = params.pix_desc.planes.at(0);
 		if (params.geometry.mode() != core::frame_geometry::scale_mode::stretch && first_plane.width > 0 && first_plane.height > 0) {
-			auto width_scale = static_cast<float>(params.target_width) / static_cast<float>(first_plane.width);
-			auto height_scale = static_cast<float>(params.target_height) / static_cast<float>(first_plane.height);
+			auto width_scale = static_cast<double>(params.target_width) / static_cast<double>(first_plane.width);
+			auto height_scale = static_cast<double>(params.target_height) / static_cast<double>(first_plane.height);
 
 			switch (params.geometry.mode()) {
 			case core::frame_geometry::scale_mode::original:
