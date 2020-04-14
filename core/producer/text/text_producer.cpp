@@ -278,7 +278,7 @@ public:
 
 			// Text is not vertically aligned within the default crop, so don't crop unless explicitly opted in
 			auto type = croppable_ ? frame_geometry::geometry_type::quad_list_croppable : frame_geometry::geometry_type::quad_list;
-			const_frame frame = it->with_geometry(frame_geometry(type, std::move(coords)));
+			const_frame frame = it->with_geometry(frame_geometry(type, frame_geometry::scale_mode::stretch, std::move(coords)));
 
 			res.push_back(std::move(draw_frame(std::move(frame))));
 		}

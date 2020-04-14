@@ -26,6 +26,7 @@
 #include <core/consumer/write_frame_consumer.h>
 #include <core/consumer/output.h>
 #include <core/video_channel.h>
+#include <core/frame/geometry.h>
 #include <core/frame/draw_frame.h>
 #include <core/frame/frame_factory.h>
 #include <core/producer/frame_producer.h>
@@ -91,6 +92,71 @@ public:
 	}
 };
 
+core::draw_frame set_scale_mode(core::draw_frame frame, boost::optional<core::frame_geometry::scale_mode> scale_mode)
+{
+	if (scale_mode == boost::none) {
+		return std::move(frame);
+	}
+
+	struct scale_mode_updater : public core::frame_visitor
+	{
+		core::frame_geometry::scale_mode scale_mode;
+
+		std::vector<std::pair<core::frame_transform, std::vector<core::draw_frame>>> stack;
+		std::vector<core::draw_frame> current;
+		core::frame_transform current_transform;
+
+		scale_mode_updater(core::frame_geometry::scale_mode scale_mode)
+			: scale_mode(scale_mode)
+		{
+		}
+
+		void push(const core::frame_transform& transform) override
+		{
+			stack.emplace_back(std::move(current_transform), std::move(current));
+			current = std::vector<core::draw_frame>();
+			current_transform = transform;
+		}
+
+		void visit(const core::const_frame& fr) override
+		{
+			auto old_geometry = fr.geometry();
+			auto fr2 = core::const_frame(fr);
+
+			// Only change if default geometry
+			if (boost::equal(old_geometry.data(), core::frame_geometry::get_default().data())) {
+				fr2 = fr2.with_geometry(core::frame_geometry(old_geometry.type(), scale_mode, old_geometry.data()));
+			}
+
+			current.push_back(core::draw_frame(std::move(fr2)));
+		}
+
+		void pop() override
+		{
+			auto parent_frame = stack.back();
+			stack.pop_back();
+
+			auto new_frame = get_current();
+
+			current_transform = parent_frame.first;
+			current = parent_frame.second;
+			
+			current.push_back(new_frame);
+		};
+
+		core::draw_frame get_current() {
+			auto new_frame = core::draw_frame(std::move(current));
+			new_frame.transform() = std::move(current_transform);
+			return new_frame;
+		}
+	};
+
+	scale_mode_updater updater(*scale_mode);
+	frame.accept(updater);
+
+	return std::move(updater.get_current());
+}
+
 std::vector<core::draw_frame> extract_actual_frames(core::draw_frame original, core::field_mode field_order)
 {
 	if (field_order == core::field_mode::progressive)
@@ -146,6 +212,8 @@ class layer_producer : public core::frame_producer_base
 	core::draw_frame							last_frame_;
 	mutable boost::rational<int>				last_frame_rate_;
 
+	boost::optional<core::frame_geometry::scale_mode> scale_mode_;
+
 	const std::weak_ptr<core::video_channel>	channel_;
 	core::constraints							pixel_constraints_;
 
@@ -153,11 +221,12 @@ class layer_producer : public core::frame_producer_base
 	std::queue<core::draw_frame>				frame_buffer_;
 
 public:
-	explicit layer_producer(const spl::shared_ptr<core::video_channel>& channel, int layer, core::frame_consumer_mode mode, int frames_delay)
+	explicit layer_producer(const spl::shared_ptr<core::video_channel>& channel, int layer, core::frame_consumer_mode mode, int frames_delay, boost::optional<core::frame_geometry::scale_mode> scale_mode)
 		: layer_(layer)
 		, consumer_(spl::make_shared<layer_consumer>(frames_delay))
 		, channel_(channel)
 		, last_frame_(core::draw_frame::late())
+		, scale_mode_(scale_mode)
 	{
 		pixel_constraints_.width.set(channel->video_format_desc().width);
 		pixel_constraints_.height.set(channel->video_format_desc().height);
@@ -201,7 +270,7 @@ public:
 		double_framerate_ = actual_frames.size() == 2;
 
 		for (auto& frame : actual_frames)
-			frame_buffer_.push(std::move(frame));
+			frame_buffer_.push(set_scale_mode(std::move(frame), scale_mode_));
 
 		return receive_impl();
 	}
@@ -262,9 +331,10 @@ spl::shared_ptr<core::frame_producer> create_layer_producer(
 		int layer,
                 core::frame_consumer_mode mode,
 		int frames_delay,
-		const core::video_format_desc& destination_mode)
+		const core::video_format_desc& destination_mode,
+		boost::optional<core::frame_geometry::scale_mode> scale_mode)
 {
-	auto producer = spl::make_shared<layer_producer>(channel, layer, mode, frames_delay);
+	auto producer = spl::make_shared<layer_producer>(channel, layer, mode, frames_delay, scale_mode);
 
 	return producer;
 }

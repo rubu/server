@@ -124,6 +124,7 @@ class decklink_producer
 							   format_repository_, // TODO - will this work?
                                out_format_desc_,
                                channel_layout_,
+							   core::frame_geometry::scale_mode::stretch,
                                filter_,
                                ffmpeg::filter::is_deinterlacing(filter_)};
 

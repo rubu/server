@@ -216,6 +216,31 @@ struct image_kernel::impl
 			coord.vertex_x += f_p[0];
 			coord.vertex_y += f_p[1];
 		};
+		
+		auto const first_plane = params.pix_desc.planes.at(0);
+		if (params.geometry.mode() != core::frame_geometry::scale_mode::stretch && first_plane.width > 0 && first_plane.height > 0) {
+			auto width_scale = static_cast<double>(params.target_width) / static_cast<double>(first_plane.width);
+			auto height_scale = static_cast<double>(params.target_height) / static_cast<double>(first_plane.height);
+
+			switch (params.geometry.mode()) {
+			case core::frame_geometry::scale_mode::original:
+				f_s[0] /= width_scale;
+				f_s[1] /= height_scale;
+				break;
+			case core::frame_geometry::scale_mode::fit: {
+				auto target_scale = std::min(width_scale, height_scale);
+				f_s[0] *= target_scale / width_scale;
+				f_s[1] *= target_scale / height_scale;
+				break;
+			}
+			case core::frame_geometry::scale_mode::fill: {
+				auto target_scale = std::max(width_scale, height_scale);
+				f_s[0] *= target_scale / width_scale;
+				f_s[1] *= target_scale / height_scale;
+				break;
+			}
+			}
+		}
 
 		if (!is_default_geometry && params.geometry.type() == core::frame_geometry::geometry_type::quad_list_croppable) {
 			// This assumes that the quads are not skewed or rotated in any way, as that is all that is needed for now, and it keeps the calculations a lot simpler

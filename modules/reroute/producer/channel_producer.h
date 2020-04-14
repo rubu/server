@@ -22,6 +22,7 @@
 #pragma once
 
 #include <common/memory.h>
+#include <core/frame/geometry.h>
 
 #include <core/fwd.h>
 
@@ -30,6 +31,7 @@ namespace caspar { namespace reroute {
 spl::shared_ptr<core::frame_producer> create_channel_producer(
 		const core::frame_producer_dependencies& dependencies,
 		const spl::shared_ptr<core::video_channel>& channel,
-		int frames_delay);
+		int frames_delay,
+		core::frame_geometry::scale_mode scale_mode);
 
 }}

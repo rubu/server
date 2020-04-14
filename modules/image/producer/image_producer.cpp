@@ -29,6 +29,7 @@
 #include <core/producer/scene/const_producer.h>
 #include <core/producer/variable.h>
 #include <core/frame/frame.h>
+#include <core/frame/geometry.h>
 #include <core/frame/draw_frame.h>
 #include <core/frame/frame_factory.h>
 #include <core/frame/pixel_format.h>
@@ -88,12 +89,12 @@ struct image_producer : public core::frame_producer_base
 	core::variable_impl<std::wstring>			png_string_data_;
 	std::shared_ptr<void>						png_data_subscription_;
 
-	image_producer(const spl::shared_ptr<core::frame_factory>& frame_factory, const std::wstring& description, bool thumbnail_mode, uint32_t length)
+	image_producer(const spl::shared_ptr<core::frame_factory>& frame_factory, const std::wstring& description, bool thumbnail_mode, uint32_t length, core::frame_geometry::scale_mode scale_mode)
 		: description_(description)
 		, frame_factory_(frame_factory)
 		, length_(length)
 	{
-		load(load_image(description_));
+		load(load_image(description_), scale_mode);
 
 		if (thumbnail_mode)
 			CASPAR_LOG(debug) << print() << L" Initialized";
@@ -101,25 +102,25 @@ struct image_producer : public core::frame_producer_base
 			CASPAR_LOG(info) << print() << L" Initialized";
 	}
 
-	image_producer(const spl::shared_ptr<core::frame_factory>& frame_factory, const std::wstring& png_data, uint32_t length)
+	image_producer(const spl::shared_ptr<core::frame_factory>& frame_factory, const std::wstring& png_data, uint32_t length, core::frame_geometry::scale_mode scale_mode)
 		: description_(L"base64 png")
 		, frame_factory_(frame_factory)
 		, length_(length)
 	{
-		png_data_subscription_ = png_string_data_.value().on_change([this]()
+		png_data_subscription_ = png_string_data_.value().on_change([this, scale_mode]()
 		{
 			auto raw_str = png_string_data_.value().get();
 			auto new_str = std::string(raw_str.begin(), raw_str.end());
 			new_str.resize(raw_str.size());
 			auto decoded_str = from_base64(new_str);
-			load(load_png_from_memory(decoded_str.data(), decoded_str.size()));
+			load(load_png_from_memory(decoded_str.data(), decoded_str.size()), scale_mode);
 		});
 		png_string_data_.value().set(png_data);
 
 		CASPAR_LOG(info) << print() << L" Initialized";
 	}
 
-	void load(const std::shared_ptr<FIBITMAP>& bitmap)
+	void load(const std::shared_ptr<FIBITMAP>& bitmap, core::frame_geometry::scale_mode scale_mode)
 	{
 		FreeImage_FlipVertical(bitmap.get());
 		auto longest_side = static_cast<int>(std::max(FreeImage_GetWidth(bitmap.get()), FreeImage_GetHeight(bitmap.get())));
@@ -131,6 +132,7 @@ struct image_producer : public core::frame_producer_base
 		desc.format = core::pixel_format::bgra;
 		desc.planes.push_back(core::pixel_format_desc::plane(FreeImage_GetWidth(bitmap.get()), FreeImage_GetHeight(bitmap.get()), 4));
 		auto frame = frame_factory_->create_frame(this, desc, core::audio_channel_layout::invalid());
+		frame.set_geometry(core::frame_geometry::get_default(scale_mode));
 
 		std::copy_n(FreeImage_GetBits(bitmap.get()), frame.image_data().size(), frame.image_data().begin());
 		frame_ = core::draw_frame(std::move(frame));
@@ -245,6 +247,7 @@ void describe_producer(core::help_sink& sink, const core::help_repository& repo)
 spl::shared_ptr<core::frame_producer> create_producer(const core::frame_producer_dependencies& dependencies, const std::vector<std::wstring>& params)
 {
 	auto length = get_param(L"LENGTH", params, std::numeric_limits<uint32_t>::max());
+	auto scale_mode = core::scale_mode_from_string(get_param(L"SCALE_MODE", params, L"stretch"));
 
 	if (boost::iequals(params.at(0), L"[IMG_SEQUENCE]"))
 	{
@@ -300,7 +303,7 @@ spl::shared_ptr<core::frame_producer> create_producer(const core::frame_producer
 		if (params.size() >= 2)
 			png_data = std::wstring(params.at(1).begin(), params.at(1).end());
 		
-		return spl::make_shared<image_producer>(dependencies.frame_factory, std::move(png_data), length);
+		return spl::make_shared<image_producer>(dependencies.frame_factory, std::move(png_data), length, scale_mode);
 	}
 
 	std::wstring filename = env::media_folder() + params.at(0);
@@ -315,7 +318,7 @@ spl::shared_ptr<core::frame_producer> create_producer(const core::frame_producer
 	if(ext == supported_extensions().end())
 		return core::frame_producer::empty();
 
-	return spl::make_shared<image_producer>(dependencies.frame_factory, *caspar::find_case_insensitive(filename + *ext), false, length);
+	return spl::make_shared<image_producer>(dependencies.frame_factory, *caspar::find_case_insensitive(filename + *ext), false, length, scale_mode);
 }
 
 
@@ -337,7 +340,8 @@ core::draw_frame create_thumbnail(const core::frame_producer_dependencies& depen
 			dependencies.frame_factory,
 			*caspar::find_case_insensitive(filename + *ext),
 			true,
-			1);
+			1,
+			core::frame_geometry::scale_mode::stretch);
 
 	return producer->receive();
 }

@@ -31,6 +31,7 @@
 #include <core/video_channel.h>
 
 #include <core/frame/frame.h>
+#include <core/frame/geometry.h>
 #include <core/frame/pixel_format.h>
 #include <core/frame/audio_channel_layout.h>
 #include <core/frame/draw_frame.h>
@@ -244,7 +245,8 @@ public:
 	explicit channel_producer(
 			const core::frame_producer_dependencies& dependecies,
 			const spl::shared_ptr<core::video_channel>& channel,
-			int frames_delay)
+			int frames_delay,
+			core::frame_geometry::scale_mode scale_mode)
 		: frame_factory_(dependecies.frame_factory)
 		, output_format_desc_(dependecies.format_desc)
 		, consumer_(spl::make_shared<channel_consumer>(frames_delay))
@@ -255,6 +257,7 @@ public:
 				dependecies.format_repository,
 				channel->video_format_desc(),
 				channel->audio_channel_layout(),
+				scale_mode,
 				L"",
 				false,
 				false)
@@ -347,9 +350,10 @@ public:
 spl::shared_ptr<core::frame_producer> create_channel_producer(
 		const core::frame_producer_dependencies& dependencies,
 		const spl::shared_ptr<core::video_channel>& channel,
-		int frames_delay)
+		int frames_delay,
+		core::frame_geometry::scale_mode scale_mode)
 {
-	auto producer = spl::make_shared<channel_producer>(dependencies, channel, frames_delay);
+	auto producer = spl::make_shared<channel_producer>(dependencies, channel, frames_delay, scale_mode);
 
 	return producer;
 }

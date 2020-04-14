@@ -143,6 +143,7 @@ struct frame_muxer::impl : boost::noncopyable
 
 	spl::shared_ptr<core::frame_factory>			frame_factory_;
 	boost::optional<av_frame_format>				previously_filtered_frame_;
+	core::frame_geometry::scale_mode				scale_mode_;
 
 	std::unique_ptr<filter>							filter_;
 	const std::wstring								filter_str_;
@@ -160,6 +161,7 @@ struct frame_muxer::impl : boost::noncopyable
 			const core::video_format_repository& format_repository,
 			const core::video_format_desc& format_desc,
 			const core::audio_channel_layout& channel_layout,
+			core::frame_geometry::scale_mode scale_mode,
 			const std::wstring& filter_str,
 			bool multithreaded_filter,
 			bool force_deinterlacing)
@@ -168,6 +170,7 @@ struct frame_muxer::impl : boost::noncopyable
 		, format_desc_(format_desc)
 		, audio_channel_layout_(channel_layout)
 		, frame_factory_(frame_factory)
+		, scale_mode_(scale_mode)
 		, filter_str_(filter_str)
 		, multithreaded_filter_(multithreaded_filter)
 		, force_deinterlacing_(force_deinterlacing)
@@ -316,6 +319,10 @@ struct frame_muxer::impl : boost::noncopyable
 
 		auto frame			= pop_video();
 		frame.audio_data()	= pop_audio();
+
+		if (scale_mode_ != core::frame_geometry::scale_mode::stretch) {
+			frame.set_geometry(core::frame_geometry::get_default(scale_mode_));
+		}
 
 		frame_buffer_.push(core::draw_frame(std::move(frame)));
 
@@ -481,10 +488,11 @@ frame_muxer::frame_muxer(
 		const core::video_format_repository& format_repository,
 		const core::video_format_desc& format_desc,
 		const core::audio_channel_layout& channel_layout,
+		core::frame_geometry::scale_mode scale_mode,
 		const std::wstring& filter,
 		bool multithreaded_filter,
 		bool force_deinterlacing)
-	: impl_(new impl(std::move(in_framerate), std::move(audio_input_pads), frame_factory, format_repository, format_desc, channel_layout, filter, multithreaded_filter, force_deinterlacing)){}
+	: impl_(new impl(std::move(in_framerate), std::move(audio_input_pads), frame_factory, format_repository, format_desc, channel_layout, scale_mode, filter, multithreaded_filter, force_deinterlacing)){}
 void frame_muxer::push(const std::shared_ptr<AVFrame>& video){impl_->push(video);}
 void frame_muxer::push(const std::vector<std::shared_ptr<core::mutable_audio_buffer>>& audio_samples_per_stream){impl_->push(audio_samples_per_stream);}
 core::draw_frame frame_muxer::poll(){return impl_->poll();}

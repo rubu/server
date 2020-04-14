@@ -125,7 +125,8 @@ public:
 			uint32_t out,
 			bool thumbnail_mode,
 			const std::wstring& custom_channel_order,
-			const ffmpeg_options& vid_params)
+			const ffmpeg_options& vid_params,
+			core::frame_geometry::scale_mode scale_mode)
 		: filename_(url_or_file)
 		, frame_factory_(frame_factory)
 		, initial_logger_disabler_(temporary_enable_quiet_logging_for_thread(thumbnail_mode))
@@ -232,7 +233,7 @@ public:
 		if (!video_decoder_ && audio_decoders_.empty())
 			CASPAR_THROW_EXCEPTION(averror_stream_not_found() << msg_info("No streams found"));
 
-		muxer_.reset(new frame_muxer(framerate_, std::move(audio_input_pads), frame_factory, format_repository, format_desc, channel_layout, filter, true));
+		muxer_.reset(new frame_muxer(framerate_, std::move(audio_input_pads), frame_factory, format_repository, format_desc, channel_layout, scale_mode, filter, true));
 
 		if (auto nb_frames = file_nb_frames())
 		{
@@ -800,6 +801,8 @@ spl::shared_ptr<core::frame_producer> create_producer(
 	auto filter_str				= get_param(L"FILTER",			params, L"");
 	auto custom_channel_order	= get_param(L"CHANNEL_LAYOUT",	params, L"");
 
+	auto scale_mode = core::scale_mode_from_string(get_param(L"SCALE_MODE", params, L"stretch"));
+
 	boost::ireplace_all(filter_str, L"DEINTERLACE_BOB",	L"YADIF=1:-1");
 	boost::ireplace_all(filter_str, L"DEINTERLACE_LQ",	L"SEPARATEFIELDS");
 	boost::ireplace_all(filter_str, L"DEINTERLACE",		L"YADIF=0:-1");
@@ -833,7 +836,8 @@ spl::shared_ptr<core::frame_producer> create_producer(
 			out,
 			false,
 			custom_channel_order,
-			vid_params);
+			vid_params,
+			scale_mode);
 
 	if (producer->audio_only())
 		return core::create_destroy_proxy(producer);
@@ -878,7 +882,8 @@ core::draw_frame create_thumbnail_frame(
 			out,
 			true,
 			L"",
-			vid_params);
+			vid_params,
+			core::frame_geometry::scale_mode::stretch);
 
 	return producer->create_thumbnail_frame();
 }

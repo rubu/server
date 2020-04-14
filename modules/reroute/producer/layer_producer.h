@@ -25,6 +25,7 @@
 
 #include <core/fwd.h>
 #include <core/consumer/write_frame_consumer.h>
+#include <core/frame/geometry.h>
 
 namespace caspar { namespace reroute {
 
@@ -33,6 +34,7 @@ spl::shared_ptr<core::frame_producer> create_layer_producer(
 		int layer,
                 core::frame_consumer_mode mode,
 		int frames_delay,
-		const core::video_format_desc& destination_mode);
+		const core::video_format_desc& destination_mode,
+		boost::optional<core::frame_geometry::scale_mode> scale_mode);
 
 }}
