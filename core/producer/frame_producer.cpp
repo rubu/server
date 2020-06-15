@@ -131,8 +131,9 @@ struct frame_producer_base::impl
         if (first_frame_ == draw_frame::empty())
             first_frame_ = draw_frame::push(frame);
 
-        return last_frame_ = draw_frame::push(frame);
-    }
+		last_frame_ = draw_frame::push(frame);
+		return paused_ ? draw_frame::still(last_frame_) : last_frame_;
+	}
 
     draw_frame first_frame()
     {
