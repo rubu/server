@@ -31,6 +31,13 @@ if(MSVC)
 			core
 
 			OpenAL32)
+elseif (APPLE)
+	find_library(OPENAL_LIB OpenAL)
+	target_link_libraries(oal
+		common
+		core
+
+		${OPENAL_LIB})
 else()
 	target_link_libraries(oal
 			common

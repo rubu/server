@@ -1,4 +1,5 @@
 /cef/linux/Release/libcef.so
+/cef/macos/Release/Chromium Embedded Framework.framework
 /cef/win32/Release/libcef.dll
 /cef/win32/Release/cef_sandbox.lib
 

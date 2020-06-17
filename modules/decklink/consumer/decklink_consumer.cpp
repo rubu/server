@@ -425,7 +425,7 @@ struct decklink_consumer
 
     int preroll_count_ = 0;
 
-    boost::circular_buffer<std::vector<int32_t>> audio_container_{buffer_size_ + 1};
+    boost::circular_buffer<std::vector<int32_t>> audio_container_{static_cast<unsigned long>(buffer_size_ + 1)};
 
     tbb::concurrent_bounded_queue<std::pair<core::frame_timecode, core::const_frame>> frame_buffer_;
     caspar::semaphore                                                                 ready_for_new_frames_{0};

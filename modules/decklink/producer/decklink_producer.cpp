@@ -128,7 +128,7 @@ class decklink_producer
                                filter_,
                                ffmpeg::filter::is_deinterlacing(filter_)};
 
-    core::constraints constraints_{in_format_desc_.width, in_format_desc_.height};
+    core::constraints constraints_{static_cast<double>(in_format_desc_.width), static_cast<double>(in_format_desc_.height)};
 
     tbb::concurrent_bounded_queue<std::pair<core::frame_timecode, core::draw_frame>> frame_buffer_;
     std::pair<core::frame_timecode, core::draw_frame>                                last_frame_ =
@@ -278,8 +278,8 @@ class decklink_producer
                 }
             }
 
-            monitor_subject_ << core::monitor::message("/file/video/width") % video->GetWidth()
-                             << core::monitor::message("/file/video/height") % video->GetHeight()
+            monitor_subject_ << core::monitor::message("/file/video/width") % static_cast<int64_t>(video->GetWidth())
+                             << core::monitor::message("/file/video/height") % static_cast<int64_t>(video->GetHeight())
                              << core::monitor::message("/file/video/field") %
                                     u8(!video_frame->interlaced_frame
                                            ? "progressive"
@@ -341,7 +341,7 @@ class decklink_producer
 
             graph_->set_value("output-buffer",
                               static_cast<float>(frame_buffer_.size()) / static_cast<float>(frame_buffer_.capacity()));
-            monitor_subject_ << core::monitor::message("/buffer") % frame_buffer_.size() % frame_buffer_.capacity();
+            monitor_subject_ << core::monitor::message("/buffer") % static_cast<int64_t>(frame_buffer_.size()) % static_cast<int64_t>(frame_buffer_.capacity());
         } catch (...) {
             exception_ = std::current_exception();
             return E_FAIL;

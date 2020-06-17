@@ -75,7 +75,7 @@ public:
 
 			return *this;
 		}
-		bool operator==(const TitleHolder& rhs)
+		bool operator==(const TitleHolder& rhs) const
 		{
 			return pframe_producer == rhs.pframe_producer;
 		}

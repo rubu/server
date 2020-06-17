@@ -12,6 +12,8 @@
 
 #include <tbb/mutex.h>
 
+#include <memory>
+
 namespace caspar { namespace accelerator {
 	
 struct accelerator::impl

@@ -37,6 +37,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <future>
 
 #include <boost/property_tree/ptree_fwd.hpp>
 #include <boost/optional.hpp>

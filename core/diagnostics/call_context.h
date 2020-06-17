@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <boost/noncopyable.hpp>
+
 #include <string>
 
 namespace caspar { namespace core { namespace diagnostics {

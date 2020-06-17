@@ -33,6 +33,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <future>
 #include <core/frame/frame_timecode.h>
 
 namespace caspar { namespace core {

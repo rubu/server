@@ -54,6 +54,7 @@ typedef REFIID CFUUIDBytes;
 typedef int HRESULT;
 typedef unsigned long ULONG;
 typedef void *LPVOID;
+typedef const char *BSTR;
 
 #define SUCCEEDED(Status) ((HRESULT)(Status) >= 0)
 #define FAILED(Status) ((HRESULT)(Status)<0)

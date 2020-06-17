@@ -21,6 +21,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <string>
+#include <list>
+
 namespace caspar { namespace IO {
 
 std::size_t tokenize(const std::wstring& message, std::list<std::wstring>& pTokenVector);
