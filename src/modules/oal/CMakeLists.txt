@@ -12,6 +12,10 @@ set(HEADERS
 		oal.h
 )
 
+if (APPLE)
+	add_compile_options(-DBOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED -Wno-unused-function -Wno-unused-local-typedef -Wno-unused-variable)
+endif ()
+
 add_library(oal ${SOURCES} ${HEADERS})
 configure_file("${PROJECT_SOURCE_DIR}/packages.config" "${CMAKE_CURRENT_BINARY_DIR}/packages.config")
 
@@ -32,7 +36,14 @@ if(MSVC)
 			core
 
 			OpenAL32)
-else()
+elseif (APPLE)
+	find_library(OPENAL_LIB OpenAL)
+	target_link_libraries(oal
+		common
+		core
+
+		${OPENAL_LIB})
+else ()
 	target_link_libraries(oal
 			common
 			core

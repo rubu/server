@@ -55,11 +55,11 @@ class route_producer
     int              source_channel_;
     int              source_layer_;
 
-    int get_source_channel() const { return source_channel_; }
-    int get_source_layer() const { return source_layer_; }
+    int get_source_channel() const override { return source_channel_; }
+    int get_source_layer() const override { return source_layer_; }
 
     // set the buffer depth to 2 for cross-channel routes, 1 otherwise
-    void set_cross_channel(bool cross)
+    void set_cross_channel(bool cross) override
     {
         if (cross) {
             buffer_.set_capacity(2);
@@ -71,8 +71,6 @@ class route_producer
   public:
     route_producer(std::shared_ptr<route> route, int buffer, int source_channel, int source_layer)
         : route_(route)
-        , source_channel_(source_channel)
-        , source_layer_(source_layer)
         , connection_(route_->signal.connect([this](const core::draw_frame& frame) {
             auto frame2 = frame;
             if (!frame2) {
@@ -85,6 +83,8 @@ class route_producer
             graph_->set_value("produce-time", produce_timer_.elapsed() * route_->format_desc.fps * 0.5);
             produce_timer_.restart();
         }))
+        , source_channel_(source_channel)
+        , source_layer_(source_layer)
     {
         buffer_.set_capacity(buffer > 0 ? buffer : 1);
 

@@ -63,12 +63,12 @@ struct newtek_ndi_consumer : public core::frame_consumer
     std::unique_ptr<NDIlib_send_instance_t, std::function<void(NDIlib_send_instance_t*)>> ndi_send_instance_;
 
   public:
-    newtek_ndi_consumer(std::wstring name, bool allow_fields)
-        : name_(!name.empty() ? name : default_ndi_name())
-        , instance_no_(instances_++)
-        , frame_no_(0)
+    newtek_ndi_consumer(std::wstring name, bool allow_fields) 
+        : instance_no_(instances_++)
+        , name_(!name.empty() ? name : default_ndi_name())
         , allow_fields_(allow_fields)
         , channel_index_(0)
+        , frame_no_(0)
     {
         ndi_lib_ = ndi::load_library();
         graph_->set_text(print());

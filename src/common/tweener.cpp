@@ -64,7 +64,6 @@ namespace caspar {
 using tweener_t = std::function<double(double, double, double, double)>;
 
 static const double PI   = std::atan(1.0) * 4.0;
-static const double H_PI = std::atan(1.0) * 2.0;
 
 double ease_none(double t, double b, double c, double d, const std::vector<double>& params) { return c * t / d + b; }
 

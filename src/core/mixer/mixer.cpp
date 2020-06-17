@@ -74,11 +74,11 @@ struct mixer::impl
 
         buffer_.push(std::async(
             std::launch::deferred,
-            [image = std::move(image), audio = std::move(audio), graph = graph_, format_desc, tag = this]() mutable {
+            [image = std::move(image), audio = std::move(audio), graph = graph_, format_desc]() mutable {
                 auto desc = pixel_format_desc(pixel_format::bgra);
                 desc.planes.push_back(pixel_format_desc::plane(format_desc.width, format_desc.height, 4));
                 std::vector<array<const uint8_t>> image_data;
-                image_data.emplace_back(std::move(image.get()));
+                image_data.emplace_back(image.get());
                 return const_frame(std::move(image_data), std::move(audio), desc);
             }));
 

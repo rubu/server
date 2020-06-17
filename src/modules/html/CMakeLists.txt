@@ -38,6 +38,14 @@ if(MSVC)
 		debug debug/libcef
 		debug debug/VS2015/libcef_dll_wrapper
 	)
+elseif (APPLE)
+	target_link_libraries(html
+		common
+		core
+
+		"${CEF_BIN_PATH}/Chromium Embedded Framework.framework"
+		${CEF_BIN_PATH}/libcef_dll_wrapper.a
+	)
 else()
 	target_link_libraries(html
 		common

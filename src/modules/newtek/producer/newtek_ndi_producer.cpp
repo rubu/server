@@ -96,11 +96,11 @@ struct newtek_ndi_producer : public core::frame_producer
                                  core::video_format_desc              format_desc,
                                  std::wstring                         name,
                                  bool                                 low_bandwidth)
-        : format_desc_(format_desc)
-        , frame_factory_(frame_factory)
+        : instance_no_(instances_++)
         , name_(name)
         , low_bandwidth_(low_bandwidth)
-        , instance_no_(instances_++)
+        , frame_factory_(frame_factory)
+        , format_desc_(format_desc)
         , executor_(print())
         , cadence_counter_(0)
     {

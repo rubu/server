@@ -54,10 +54,10 @@ struct param_visitor : public boost::static_visitor<void>
     }
 
     void operator()(const bool value) { o << value; }
-    void operator()(const int32_t value) { o << static_cast<int32_t>(value); }
-    void operator()(const uint32_t value) { o << static_cast<int64_t>(value); }
-    void operator()(const int64_t value) { o << static_cast<int64_t>(value); }
-    void operator()(const uint64_t value) { o << static_cast<int64_t>(value); }
+    void operator()(const int32_t value) { o << static_cast<::osc::int32>(value); }
+    void operator()(const uint32_t value) { o << static_cast<::osc::uint32>(value); }
+    void operator()(const int64_t value) { o << static_cast<::osc::int64>(value); }
+    void operator()(const uint64_t value) { o << static_cast<::osc::uint64>(value); }
     void operator()(const float value) { o << value; }
     void operator()(const double value) { o << static_cast<float>(value); }
     void operator()(const std::string& value) { o << value.c_str(); }

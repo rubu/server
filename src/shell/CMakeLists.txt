@@ -14,6 +14,10 @@ if (MSVC)
 			shell.rc
 			windows_specific.cpp
 	)
+elseif (APPLE)
+	set(OS_SPECIFIC_SOURCES
+			macos_specific.cpp
+	)
 else ()
 	set(OS_SPECIFIC_SOURCES
 			linux_specific.cpp
@@ -77,6 +81,21 @@ if (MSVC)
 		d3d11.lib
 		dxgi.lib
 	)
+elseif (APPLE)
+	target_link_libraries(casparcg
+		${Boost_LIBRARIES}
+		${TBB_LIBRARIES}
+		${TBB_MALLOC_LIBRARIES}
+		${TBB_MALLOC_PROXY_LIBRARIES}
+		${SFML_LIBRARIES}
+		GLEW::glew
+		iconv
+		${OPENGL_gl_LIBRARY}
+		${FFMPEG_LIBRARIES}
+		dl
+		z
+		pthread
+	)
 else ()
 	target_link_libraries(casparcg
 		${Boost_LIBRARIES}
@@ -114,6 +133,10 @@ if (MSVC)
 			add_custom_command(TARGET casparcg_copy_dependencies POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy \"${FILE_TO_COPY}\" \"${CMAKE_CURRENT_BINARY_DIR}/\")
 		endif()
 	endforeach(FILE_TO_COPY)
+elseif (APPLE)
+	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_BIN_PATH}/Chromium Embedded Framework.framework" "${CMAKE_BINARY_DIR}/shell/Frameworks/Chromium Embedded Framework.framework")
+	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${CEF_BIN_PATH}/Chromium Embedded Framework.framework/Resources/icudtl.dat" "\${BUILT_PRODUCTS_DIR}/icudtl.dat")
+	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/shell/casparcg.config "\${BUILT_PRODUCTS_DIR}/casparcg.config")
 else ()
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/shell/casparcg ${CMAKE_BINARY_DIR}/staging/bin/casparcg)
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/shell/casparcg.config ${CMAKE_BINARY_DIR}/staging/casparcg.config)

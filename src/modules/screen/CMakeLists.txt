@@ -18,7 +18,7 @@ set(HEADERS
 bin2c("consumer/screen.vert" "consumer_screen_vertex.h" "caspar::screen" "vertex_shader")
 bin2c("consumer/screen.frag" "consumer_screen_fragment.h" "caspar::screen" "fragment_shader")
 
-if (MSVC)
+if (MSVC OR APPLE)
 else ()
 	set(OS_SPECIFIC_HEADERS
 			util/x11_util.h

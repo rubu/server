@@ -246,6 +246,8 @@ struct screen_consumer
 #ifdef _MSC_VER
                     HWND hwnd = window_.getSystemHandle();
                     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+#elif defined(__APPLE__)
+                    // TODO: implement
 #else
                     window_always_on_top(window_);
 #endif

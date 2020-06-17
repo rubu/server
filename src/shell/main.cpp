@@ -28,7 +28,7 @@
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #include <stdlib.h>
-#else
+#elif !defined(__APPLE__)
 #include <tbb/tbbmalloc_proxy.h>
 #endif
 

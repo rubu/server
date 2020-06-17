@@ -59,7 +59,7 @@ std::string to_base64(const char* data, size_t length)
     std::string result(base64_iterator(bytes.data()), base64_iterator(bytes.data() + length));
     result.insert(result.end(), padding, '=');
 
-    return std::move(result);
+    return result;
 }
 
 std::vector<unsigned char> from_base64(const std::string& data)
@@ -101,12 +101,12 @@ std::vector<unsigned char> from_base64(const std::string& data)
         std::vector<unsigned char> result(base64_iterator(concatenated.begin()), base64_iterator(concatenated.end()));
 
         result.resize(result.size() - padding);
-        return std::move(result);
+        return result;
     }
     // From https://svn.boost.org/trac/boost/ticket/5624
     using base64_iterator = transform_width<binary_from_base64<remove_whitespace<std::string::const_iterator>>, 8, 6>;
     std::vector<unsigned char> result(base64_iterator(data.begin()), base64_iterator(data.end()));
-    return std::move(result);
+    return result;
 }
 
 } // namespace caspar

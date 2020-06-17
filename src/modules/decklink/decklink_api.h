@@ -114,8 +114,10 @@ namespace caspar { namespace decklink {
 
 using String = const char*;
 using BOOL   = bool;
+#if !defined(__APPLE__)
 #define TRUE true
 #define FALSE false
+#endif
 using UINT32 = uint32_t;
 
 static std::wstring to_string(String utf16_string) { return u16(utf16_string); }

@@ -43,7 +43,7 @@ std::vector<std::pair<int, int>> get_line_points(int num_pixels, double angle_ra
         line_points.push_back(std::make_pair(static_cast<int>(std::floor(delta_x * static_cast<double>(i) + 0.5)),
                                              static_cast<int>(std::floor(delta_y * static_cast<double>(i) + 0.5))));
 
-    return std::move(line_points);
+    return line_points;
 }
 
 }} // namespace caspar::image

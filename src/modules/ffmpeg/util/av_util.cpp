@@ -234,6 +234,9 @@ std::shared_ptr<AVFrame> make_av_video_frame(const core::const_frame& frame, con
         case core::pixel_format::ycbcra:
             av_frame->format = AVPixelFormat::AV_PIX_FMT_YUVA420P;
             break;
+        case core::pixel_format::uyvy:
+            av_frame->format = AV_PIX_FMT_UYVY422;
+            break;
         case core::pixel_format::count:
         case core::pixel_format::invalid:
             break;

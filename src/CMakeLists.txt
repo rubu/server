@@ -15,7 +15,11 @@ LIST (APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/CMakeModules)
 if (MSVC)
 	INCLUDE (Bootstrap_Windows)
 else ()
-	INCLUDE (Bootstrap_Linux)
+	if (APPLE)
+		INCLUDE (Bootstrap_Macos)
+	else ()
+		INCLUDE (Bootstrap_Linux)
+	endif()
 
 	# Output build settings
 	IF (SUPPORTED_PLATFORM)

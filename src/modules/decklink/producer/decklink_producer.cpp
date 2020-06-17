@@ -469,12 +469,23 @@ class decklink_producer : public IDeckLinkInputCallback
                 state_["file/audio/channels"]    = format_desc_.audio_channels;
                 state_["file/fps"]               = format_desc_.fps;
                 state_["profiler/time"]          = {frame_timer.elapsed(), format_desc_.fps};
+#if defined(__APPLE__)
+                static_assert(sizeof(std::ptrdiff_t) == sizeof(std::int64_t), "");
+                state_["buffer"]                 = {static_cast<std::int64_t>(frame_buffer_.size()), static_cast<std::int64_t>(frame_buffer_.capacity())};
+#else
                 state_["buffer"]                 = {frame_buffer_.size(), frame_buffer_.capacity()};
+#endif
                 state_["has_signal"]             = has_signal_;
 
                 if (video) {
+#if defined(__APPLE__)
+                    static_assert(sizeof(std::int64_t) == sizeof(long), "");
+                    state_["file/video/width"]  = static_cast<std::int64_t>(video->GetWidth());
+                    state_["file/video/height"] = static_cast<std::int64_t>(video->GetHeight());
+#else
                     state_["file/video/width"]  = video->GetWidth();
                     state_["file/video/height"] = video->GetHeight();
+#endif
                 }
             }
 
