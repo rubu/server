@@ -17,6 +17,7 @@ if (MSVC)
 elseif (APPLE)
 	set(OS_SPECIFIC_SOURCES
 			macos_specific.cpp
+			macos_event_loop.mm
 	)
 else ()
 	set(OS_SPECIFIC_SOURCES
@@ -34,13 +35,53 @@ set(HEADERS
 		server.h
 )
 
-add_executable(casparcg ${SOURCES} ${HEADERS} ${OS_SPECIFIC_SOURCES})
+if (APPLE)
+	set(XCODE_ATTRIBUTE_PRODUCT_NAME "CasparCG Server Helper")
+	set(MACOSX_BUNDLE_PRODUCT_NAME "CasparCG Server Helper")
+	set(MACOSX_BUNDLE_BUNDLE_NAME "CasparCG Server Helper")
+	set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.casparcg.server-helper")
+	set(MACOSX_BUNDLE_ICON_FILE "icon.icns")
+	set(MACOSX_BUNDLE_LONG_VERSION_STRING "2.1")
+	set(MACOSX_BUNDLE_SHORT_VERSION_STRING "2.1")
+	set(MACOSX_BUNDLE_BUNDLE_VERSION "2.1")
+	set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+	set(CASPARCG_HELPER_NAME "casparcg Helper")
+	include_directories(${CEF_ROOT_DIR})
+	add_executable(${CASPARCG_HELPER_NAME} MACOSX_BUNDLE macos_helper.cpp)
+	set_target_properties(${CASPARCG_HELPER_NAME} PROPERTIES XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks")
+	target_link_libraries(${CASPARCG_HELPER_NAME}
+		ffmpeg
+		html
+	)
+
+	set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_MODULE_PATH})
+	set(XCODE_ATTRIBUTE_PRODUCT_NAME "CasparCG Server")
+	set(MACOSX_BUNDLE_PRODUCT_NAME "CasparCG Server")
+	set(MACOSX_BUNDLE_BUNDLE_NAME "CasparCG Server")
+	set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.casparcg.server")
+	set(MACOSX_BUNDLE_ICON_FILE "icon.icns")
+	set(MACOSX_BUNDLE_LONG_VERSION_STRING "2.1")
+	set(MACOSX_BUNDLE_SHORT_VERSION_STRING "2.1")
+	set(MACOSX_BUNDLE_BUNDLE_VERSION "2.1")
+	set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+	add_executable(casparcg MACOSX_BUNDLE ${SOURCES} ${HEADERS} ${OS_SPECIFIC_SOURCES})
+	add_dependencies(casparcg "casparcg Helper")
+else ()
+	add_executable(casparcg ${SOURCES} ${HEADERS} ${OS_SPECIFIC_SOURCES})
+endif ()
 
 include_directories(..)
 include_directories(${BOOST_INCLUDE_PATH})
 include_directories(${TBB_INCLUDE_PATH})
 
 source_group(sources ./*)
+
+if (APPLE)
+	target_link_libraries(casparcg
+		"-framework CoreFoundation"
+		"-framework AppKit"
+	)
+endif ()
 
 target_link_libraries(casparcg
 		accelerator
@@ -82,6 +123,12 @@ if (MSVC)
 		dxgi.lib
 	)
 elseif (APPLE)
+	target_link_libraries(${CASPARCG_HELPER_NAME}
+		${Boost_LIBRARIES}
+		${TBB_LIBRARIES}
+		${TBB_MALLOC_LIBRARIES}
+		${TBB_MALLOC_PROXY_LIBRARIES}
+	)
 	target_link_libraries(casparcg
 		${Boost_LIBRARIES}
 		${TBB_LIBRARIES}
@@ -134,9 +181,8 @@ if (MSVC)
 		endif()
 	endforeach(FILE_TO_COPY)
 elseif (APPLE)
-	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_BIN_PATH}/Chromium Embedded Framework.framework" "${CMAKE_BINARY_DIR}/shell/Frameworks/Chromium Embedded Framework.framework")
-	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy "${CEF_BIN_PATH}/Chromium Embedded Framework.framework/Resources/icudtl.dat" "\${BUILT_PRODUCTS_DIR}/icudtl.dat")
-	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/shell/casparcg.config "\${BUILT_PRODUCTS_DIR}/casparcg.config")
+	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_ROOT_DIR}/\${CONFIGURATION}/Chromium Embedded Framework.framework" "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Frameworks/Chromium Embedded Framework.framework")
+	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "\${BUILT_PRODUCTS_DIR}/casparcg Helper.app" "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Frameworks/casparcg Helper.app")
 else ()
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/shell/casparcg ${CMAKE_BINARY_DIR}/staging/bin/casparcg)
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/shell/casparcg.config ${CMAKE_BINARY_DIR}/staging/casparcg.config)

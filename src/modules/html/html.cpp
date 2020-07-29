@@ -20,6 +20,7 @@
  */
 
 #include "html.h"
+#include "render_application.h"
 
 #include "producer/html_cg_proxy.h"
 #include "producer/html_producer.h"
@@ -37,12 +38,6 @@
 
 #include <memory>
 #include <utility>
-
-#pragma warning(push)
-#pragma warning(disable : 4458)
-#include <include/cef_app.h>
-#include <include/cef_version.h>
-#pragma warning(pop)
 
 #pragma comment(lib, "libcef.lib")
 #pragma comment(lib, "libcef_dll_wrapper.lib")
@@ -95,128 +90,123 @@ class remove_handler : public CefV8Handler
     IMPLEMENT_REFCOUNTING(remove_handler);
 };
 
-class renderer_application
-    : public CefApp
-    , CefRenderProcessHandler
+renderer_application::renderer_application(const bool enable_gpu)
+    : enable_gpu_(enable_gpu)
 {
-    std::vector<CefRefPtr<CefV8Context>> contexts_;
-    const bool                           enable_gpu_;
+}
 
-  public:
-    explicit renderer_application(const bool enable_gpu)
-        : enable_gpu_(enable_gpu)
-    {
+CefRefPtr<CefRenderProcessHandler> renderer_application::GetRenderProcessHandler()
+{
+     return this; 
+}
+
+void
+renderer_application::OnContextCreated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefV8Context> context)
+{
+    caspar_log(browser,
+                boost::log::trivial::trace,
+                "context for frame " + std::to_string(frame->GetIdentifier()) + " created");
+    contexts_.push_back(context);
+
+    auto window = context->GetGlobal();
+
+    window->SetValue(
+        "remove", CefV8Value::CreateFunction("remove", new remove_handler(browser)), V8_PROPERTY_ATTRIBUTE_NONE);
+
+    CefRefPtr<CefV8Value>     ret;
+    CefRefPtr<CefV8Exception> exception;
+    bool                      injected = context->Eval(R"(
+        var requestedAnimationFrames	= {};
+        var currentAnimationFrameId		= 0;
+
+        window.caspar = {};
+
+        window.requestAnimationFrame = function(callback) {
+            requestedAnimationFrames[++currentAnimationFrameId] = callback;
+            return currentAnimationFrameId;
+        }
+
+        window.cancelAnimationFrame = function(animationFrameId) {
+            delete requestedAnimationFrames[animationFrameId];
+        }
+
+        function tickAnimations() {
+            var requestedFrames = requestedAnimationFrames;
+            var timestamp = performance.now();
+            requestedAnimationFrames = {};
+
+            for (var animationFrameId in requestedFrames)
+                if (requestedFrames.hasOwnProperty(animationFrameId))
+                    requestedFrames[animationFrameId](timestamp);
+        }
+    )",
+                                    CefString(),
+                                    1,
+                                    ret,
+                                    exception);
+
+    if (!injected) {
+        caspar_log(browser, boost::log::trivial::error, "Could not inject javascript animation code.");
     }
+}
 
-    CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override { return this; }
+void renderer_application::OnContextReleased(CefRefPtr<CefBrowser>   browser,
+                                             CefRefPtr<CefFrame>     frame,
+                                             CefRefPtr<CefV8Context> context)
+{
+    auto removed =
+        boost::remove_if(contexts_, [&](const CefRefPtr<CefV8Context>& c) { return c->IsSame(context); });
 
-    void
-    OnContextCreated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefV8Context> context) override
-    {
+    if (removed != contexts_.end()) {
         caspar_log(browser,
-                   boost::log::trivial::trace,
-                   "context for frame " + std::to_string(frame->GetIdentifier()) + " created");
-        contexts_.push_back(context);
+                    boost::log::trivial::trace,
+                    "context for frame " + std::to_string(frame->GetIdentifier()) + " released");
+    } else {
+        caspar_log(browser,
+                    boost::log::trivial::warning,
+                    "context for frame " + std::to_string(frame->GetIdentifier()) + " released, but not found");
+    }
+}
 
-        auto window = context->GetGlobal();
+void renderer_application::OnBrowserDestroyed(CefRefPtr<CefBrowser> browser)
+{ 
+    contexts_.clear(); 
+}
 
-        window->SetValue(
-            "remove", CefV8Value::CreateFunction("remove", new remove_handler(browser)), V8_PROPERTY_ATTRIBUTE_NONE);
-
-        CefRefPtr<CefV8Value>     ret;
-        CefRefPtr<CefV8Exception> exception;
-        bool                      injected = context->Eval(R"(
-			var requestedAnimationFrames	= {};
-			var currentAnimationFrameId		= 0;
-
-            window.caspar = {};
-
-			window.requestAnimationFrame = function(callback) {
-				requestedAnimationFrames[++currentAnimationFrameId] = callback;
-				return currentAnimationFrameId;
-			}
-
-			window.cancelAnimationFrame = function(animationFrameId) {
-				delete requestedAnimationFrames[animationFrameId];
-			}
-
-			function tickAnimations() {
-				var requestedFrames = requestedAnimationFrames;
-				var timestamp = performance.now();
-				requestedAnimationFrames = {};
-
-				for (var animationFrameId in requestedFrames)
-					if (requestedFrames.hasOwnProperty(animationFrameId))
-						requestedFrames[animationFrameId](timestamp);
-			}
-		)",
-                                      CefString(),
-                                      1,
-                                      ret,
-                                      exception);
-
-        if (!injected) {
-            caspar_log(browser, boost::log::trivial::error, "Could not inject javascript animation code.");
-        }
+void renderer_application::OnBeforeCommandLineProcessing(const CefString& process_type, CefRefPtr<CefCommandLine> command_line)
+{
+    if (enable_gpu_) {
+        command_line->AppendSwitch("enable-webgl");
     }
 
-    void OnContextReleased(CefRefPtr<CefBrowser>   browser,
-                           CefRefPtr<CefFrame>     frame,
-                           CefRefPtr<CefV8Context> context) override
-    {
-        auto removed =
-            boost::remove_if(contexts_, [&](const CefRefPtr<CefV8Context>& c) { return c->IsSame(context); });
+    command_line->AppendSwitch("enable-begin-frame-scheduling");
+    command_line->AppendSwitch("enable-media-stream");
+    command_line->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
 
-        if (removed != contexts_.end()) {
-            caspar_log(browser,
-                       boost::log::trivial::trace,
-                       "context for frame " + std::to_string(frame->GetIdentifier()) + " released");
-        } else {
-            caspar_log(browser,
-                       boost::log::trivial::warning,
-                       "context for frame " + std::to_string(frame->GetIdentifier()) + " released, but not found");
-        }
+    if (process_type.empty() && !enable_gpu_) {
+        // This gives more performance, but disabled gpu effects. Without it a single 1080p producer cannot be run
+        // smoothly
+        command_line->AppendSwitch("disable-gpu");
+        command_line->AppendSwitch("disable-gpu-compositing");
+        command_line->AppendSwitchWithValue("disable-gpu-vsync", "gpu");
     }
+}
 
-    void OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) override { contexts_.clear(); }
-
-    void OnBeforeCommandLineProcessing(const CefString& process_type, CefRefPtr<CefCommandLine> command_line) override
-    {
-        if (enable_gpu_) {
-            command_line->AppendSwitch("enable-webgl");
+bool renderer_application::OnProcessMessageReceived(CefRefPtr<CefBrowser>        browser,
+                                                    CefProcessId                 source_process,
+                                                    CefRefPtr<CefProcessMessage> message)
+{
+    if (message->GetName().ToString() == TICK_MESSAGE_NAME) {
+        for (auto& context : contexts_) {
+            CefRefPtr<CefV8Value>     ret;
+            CefRefPtr<CefV8Exception> exception;
+            context->Eval("tickAnimations()", CefString(), 1, ret, exception);
         }
 
-        command_line->AppendSwitch("enable-begin-frame-scheduling");
-        command_line->AppendSwitch("enable-media-stream");
-        command_line->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
-
-        if (process_type.empty() && !enable_gpu_) {
-            // This gives more performance, but disabled gpu effects. Without it a single 1080p producer cannot be run
-            // smoothly
-            command_line->AppendSwitch("disable-gpu");
-            command_line->AppendSwitch("disable-gpu-compositing");
-            command_line->AppendSwitchWithValue("disable-gpu-vsync", "gpu");
-        }
+        return true;
     }
-
-    bool OnProcessMessageReceived(CefRefPtr<CefBrowser>        browser,
-                                  CefProcessId                 source_process,
-                                  CefRefPtr<CefProcessMessage> message) override
-    {
-        if (message->GetName().ToString() == TICK_MESSAGE_NAME) {
-            for (auto& context : contexts_) {
-                CefRefPtr<CefV8Value>     ret;
-                CefRefPtr<CefV8Exception> exception;
-                context->Eval("tickAnimations()", CefString(), 1, ret, exception);
-            }
-
-            return true;
-        }
-        return false;
-    }
-
-    IMPLEMENT_REFCOUNTING(renderer_application);
-};
+    return false;
+}
 
 bool intercept_command_line(int argc, char** argv)
 {
