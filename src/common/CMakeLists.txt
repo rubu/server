@@ -33,8 +33,6 @@ endif ()
 set(HEADERS
 		diagnostics/graph.h
 
-		gl/gl_check.h
-
 		os/filesystem.h
 		os/thread.h
 
@@ -62,6 +60,22 @@ set(HEADERS
 		utf.h
 )
 
+if (APPLE)
+	set(HEADERS
+		${HEADERS}
+		
+		metal/metal_check.h
+	)
+else ()
+	set(HEADERS
+		${HEADERS}
+
+		gl/gl_check.h
+	)
+
+	include_directories(${GLEW_INCLUDE_PATH})
+endif ()
+
 add_library(common ${SOURCES} ${HEADERS} ${OS_SPECIFIC_SOURCES})
 add_precompiled_header(common stdafx.h FORCEINCLUDE)
 configure_file("${PROJECT_SOURCE_DIR}/packages.config" "${CMAKE_CURRENT_BINARY_DIR}/packages.config")
@@ -69,7 +83,6 @@ configure_file("${PROJECT_SOURCE_DIR}/packages.config" "${CMAKE_CURRENT_BINARY_D
 include_directories(..)
 include_directories(${BOOST_INCLUDE_PATH})
 include_directories(${TBB_INCLUDE_PATH})
-include_directories(${GLEW_INCLUDE_PATH})
 
 source_group(sources ./*)
 source_group(sources\\gl gl/*)

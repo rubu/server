@@ -48,7 +48,9 @@
 
 namespace caspar { namespace html {
 
+#if !defined(__APPLE__)
 std::unique_ptr<executor> g_cef_executor;
+#endif
 
 void caspar_log(const CefRefPtr<CefBrowser>&        browser,
                 boost::log::trivial::severity_level level,
@@ -224,8 +226,7 @@ void init(core::module_dependencies dependencies)
     dependencies.producer_registry->register_producer_factory(L"HTML Producer", html::create_producer);
 
     CefMainArgs main_args;
-    g_cef_executor = std::make_unique<executor>(L"cef");
-    g_cef_executor->invoke([&] {
+    auto initialize_cef = [&] {
 #ifdef WIN32
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #endif
@@ -245,7 +246,16 @@ void init(core::module_dependencies dependencies)
         settings.remote_debugging_port        = env::properties().get(L"configuration.html.remote-debugging-port", 0);
         settings.windowless_rendering_enabled = true;
         CefInitialize(main_args, settings, CefRefPtr<CefApp>(new renderer_application(enable_gpu)), nullptr);
-    });
+    };
+    
+#if defined(__APPLE__)
+    initialize_cef();
+#else
+    g_cef_executor = std::make_unique<executor>(L"cef");
+    g_cef_executor->invoke([&initialize_cef]
+    {
+        initialize_cef();
+    };
     g_cef_executor->begin_invoke([&] { CefRunMessageLoop(); });
     dependencies.cg_registry->register_cg_producer(
         L"html",
@@ -255,7 +265,8 @@ void init(core::module_dependencies dependencies)
             return html::create_cg_producer(dependencies, {filename});
         },
         false);
-
+#endif
+                           
     auto cef_version_major = std::to_wstring(cef_version_info(0));
     auto cef_revision      = std::to_wstring(cef_version_info(1));
     auto chrome_major      = std::to_wstring(cef_version_info(2));
@@ -267,8 +278,10 @@ void init(core::module_dependencies dependencies)
 void uninit()
 {
     invoke([] { CefQuitMessageLoop(); });
+#if !defined(__APPLE__)
     g_cef_executor->begin_invoke([&] { CefShutdown(); });
     g_cef_executor.reset();
+#endif
 }
 
 class cef_task : public CefTask

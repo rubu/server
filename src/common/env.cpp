@@ -87,7 +87,11 @@ void configure(const std::wstring& filename)
     try {
         initial = clean_path(boost::filesystem::initial_path().wstring());
 
+#if defined(__APPLE__)
+        boost::filesystem::wifstream file(filename);
+#else
         boost::filesystem::wifstream file(initial + L"/" + filename);
+#endif
         boost::property_tree::read_xml(file,
                                        pt,
                                        boost::property_tree::xml_parser::trim_whitespace |

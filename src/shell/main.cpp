@@ -57,6 +57,11 @@
 #include <clocale>
 #include <csignal>
 
+#if defined(__APPLE__)
+#include "macos_event_loop.h"
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 namespace caspar {
 
 void setup_global_locale()
@@ -183,6 +188,10 @@ int main(int argc, char** argv)
 {
     using namespace caspar;
 
+#if defined(__APPLE__)
+    initialize_html_event_loop_delegate();
+#endif
+    
     if (intercept_command_line_args(argc, argv))
         return 0;
 
@@ -214,12 +223,43 @@ int main(int argc, char** argv)
     increase_process_priority();
 
     tbb::task_scheduler_init init;
+#if defined(__APPLE__)
+    std::wstring  config_file_name;
+    CFBundleRef main_bundle = CFBundleGetMainBundle();
+    if (main_bundle)
+    {
+        CFURLRef config_file_url = CFBundleCopyResourceURL(main_bundle, CFSTR("casparcg.config"), nullptr, nullptr);
+        if (config_file_url)
+        {
+            CFStringRef config_file_url_string = CFURLCopyFileSystemPath(config_file_url, kCFURLPOSIXPathStyle);
+            if (config_file_url_string)
+            {
+                const auto encoding = (CFByteOrderLittleEndian == CFByteOrderGetCurrent()) ? kCFStringEncodingUTF32LE : kCFStringEncodingUTF32BE;
+                CFDataRef confing_file_url_string_data = CFStringCreateExternalRepresentation(kCFAllocatorDefault, config_file_url_string, encoding, 0);
+                if (confing_file_url_string_data)
+                {
+                    const auto* characters = reinterpret_cast<const wchar_t*>(CFDataGetBytePtr(confing_file_url_string_data));
+                    const auto length = CFStringGetLength(config_file_url_string);
+                    if (characters && length > 0)
+                    {
+                        config_file_name = std::wstring(characters, length);
+                    }
+                    CFRelease(confing_file_url_string_data);
+                }
+            }
+            CFRelease(config_file_url);
+        }
+    }
+#else
     std::wstring             config_file_name(L"casparcg.config");
+#endif
 
     try {
         // Configure environment properties from configuration.
+#if !defined(__APPLE__)
         if (argc >= 2)
             config_file_name = caspar::u16(argv[1]);
+#endif
 
         log::add_cout_sink();
         env::configure(config_file_name);

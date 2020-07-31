@@ -1,7 +1,12 @@
 #include "accelerator.h"
 
+#if defined(__APPLE__)
+#include "metal/util/device.h"
+#include "metal/image/image_mixer.h"
+#else
 #include "ogl/image/image_mixer.h"
 #include "ogl/util/device.h"
+#endif
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -15,19 +20,29 @@ namespace caspar { namespace accelerator {
 
 struct accelerator::impl
 {
-    std::shared_ptr<ogl::device> ogl_device_;
+#if defined(__APPLE__)
+    using device_type = metal::device;
+#else
+    using device_type = ogl::device;
+#endif
+
+    std::shared_ptr<device_type> ogl_device_;
 
     impl() {}
 
     std::unique_ptr<core::image_mixer> create_image_mixer(int channel_id)
     {
+#if defined(__APPLE__)
+        return std::make_unique<metal::image_mixer>(spl::make_shared_ptr(get_device()), channel_id);
+#else
         return std::make_unique<ogl::image_mixer>(spl::make_shared_ptr(get_device()), channel_id);
+#endif
     }
 
-    std::shared_ptr<ogl::device> get_device()
+    std::shared_ptr<device_type> get_device()
     {
         if (!ogl_device_) {
-            ogl_device_ = std::make_shared<ogl::device>();
+            ogl_device_ = std::make_shared<device_type>();
         }
 
         return ogl_device_;

@@ -35,7 +35,7 @@ set(HEADERS
 		server.h
 )
 
-if (APPLE)
+if (APPLE AND ENABLE_HTML)
 	set(XCODE_ATTRIBUTE_PRODUCT_NAME "CasparCG Server Helper")
 	set(MACOSX_BUNDLE_PRODUCT_NAME "CasparCG Server Helper")
 	set(MACOSX_BUNDLE_BUNDLE_NAME "CasparCG Server Helper")
@@ -80,6 +80,7 @@ if (APPLE)
 	target_link_libraries(casparcg
 		"-framework CoreFoundation"
 		"-framework AppKit"
+		"-framework Metal"
 	)
 endif ()
 
@@ -123,12 +124,14 @@ if (MSVC)
 		dxgi.lib
 	)
 elseif (APPLE)
-	target_link_libraries(${CASPARCG_HELPER_NAME}
-		${Boost_LIBRARIES}
-		${TBB_LIBRARIES}
-		${TBB_MALLOC_LIBRARIES}
-		${TBB_MALLOC_PROXY_LIBRARIES}
-	)
+	if (ENABLE_HTML)
+		target_link_libraries(${CASPARCG_HELPER_NAME}
+			${Boost_LIBRARIES}
+			${TBB_LIBRARIES}
+			${TBB_MALLOC_LIBRARIES}
+			${TBB_MALLOC_PROXY_LIBRARIES}
+		)
+	endif ()
 	target_link_libraries(casparcg
 		${Boost_LIBRARIES}
 		${TBB_LIBRARIES}
@@ -182,7 +185,17 @@ if (MSVC)
 	endforeach(FILE_TO_COPY)
 elseif (APPLE)
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_ROOT_DIR}/\${CONFIGURATION}/Chromium Embedded Framework.framework" "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Frameworks/Chromium Embedded Framework.framework")
-	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "\${BUILT_PRODUCTS_DIR}/casparcg Helper.app" "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Frameworks/casparcg Helper.app")
+	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "\${BUILT_PRODUCTS_DIR}/${CASPARCG_HELPER_NAME}.app" "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Frameworks/${CASPARCG_HELPER_NAME}.app")
+
+	casparcg_add_macos_resource("${CMAKE_CURRENT_SOURCE_DIR}/casparcg.config")
+	casparcg_add_macos_resource("${CMAKE_CURRENT_SOURCE_DIR}/liberation-fonts/LiberationMono-Regular.ttf")
+
+	if (DEFINED CASPARCG_MACOS_RESOURCES)
+		ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Resources/")
+		FOREACH (RESOURCE ${CASPARCG_MACOS_RESOURCES})
+			ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy \"${RESOURCE}\" "\${TARGET_BUILD_DIR}/\${CONTENTS_FOLDER_PATH}/Resources/")
+		ENDFOREACH (RESOURCE)
+	endif ()
 else ()
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/shell/casparcg ${CMAKE_BINARY_DIR}/staging/bin/casparcg)
 	ADD_CUSTOM_COMMAND (TARGET casparcg POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/shell/casparcg.config ${CMAKE_BINARY_DIR}/staging/casparcg.config)
